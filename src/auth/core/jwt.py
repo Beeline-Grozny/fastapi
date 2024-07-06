@@ -24,11 +24,12 @@ async def get_roles_by_user_id(user_id: uuid.UUID, db: AsyncSession) -> list[Rol
     # query = select(Role).join(RoleGroup, RoleGroup.role_id == Role.id).join(
     #     Group, Group.id == RoleGroup.group_id
     # ).join(GroupUser, GroupUser.group_id == Group.id).join(User, User.id == GroupUser.user_id).where(User.id == user_id)
-    query = select(Role).join(RoleGroup, RoleGroup.role_name == Role.id).join(
-        Group, Group.id == RoleGroup.group_name
-    ).join(GroupUser, GroupUser.group_name == Group.id).join(User, User.id == GroupUser.user_id).where(User.id == user_id)
-    result = await db.execute(query)
-    roles = result.scalars().all()
+    # query = select(Role).join(RoleGroup, RoleGroup.role_name == Role.id).join(
+    #     Group, Group.id == RoleGroup.group_name
+    # ).join(GroupUser, GroupUser.group_name == Group.id).join(User, User.id == GroupUser.user_id).where(User.id == user_id)
+    # # result = await db.execute(query)
+    # roles = result.scalars().all()
+    roles = []
     return roles
 def _create_access_token(payload: dict, minutes: int | None = None) -> JwtTokenSchema:
     expire = datetime.utcnow() + timedelta(
