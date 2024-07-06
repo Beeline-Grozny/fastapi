@@ -12,10 +12,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, ForeignKey, UniqueConstraint
 
 
-
 class utcnow(expression.FunctionElement):
     type = DateTime()
     inherit_cache = True
+
+
 @compiles(utcnow, "postgresql")
 def pg_utcnow(element, compiler, **kw):
     return "TIMEZONE('utc', CURRENT_TIMESTAMP)"
@@ -52,7 +53,6 @@ class User(Base):
         return user
 
 
-
 class Role(Base):
     __tablename__ = "roles"
     id: Mapped[uuid.UUID] = mapped_column(
@@ -63,6 +63,8 @@ class Role(Base):
     updated_at: Mapped[datetime] = mapped_column(
         server_default=utcnow(), server_onupdate=utcnow(), onupdate=utcnow()
     )
+
+
 class Group(Base):
     __tablename__ = "groups"
     id: Mapped[uuid.UUID] = mapped_column(
@@ -74,6 +76,7 @@ class Group(Base):
     updated_at: Mapped[datetime] = mapped_column(
         server_default=utcnow(), server_onupdate=utcnow(), onupdate=utcnow()
     )
+
 
 class GroupUser(Base):
     __tablename__ = "groups_users"
@@ -87,6 +90,7 @@ class GroupUser(Base):
         server_default=utcnow(), server_onupdate=utcnow(), onupdate=utcnow()
     )
 
+
 class RoleGroup(Base):
     __tablename__ = "roles_groups"
     id: Mapped[uuid.UUID] = mapped_column(
@@ -98,6 +102,8 @@ class RoleGroup(Base):
     updated_at: Mapped[datetime] = mapped_column(
         server_default=utcnow(), server_onupdate=utcnow(), onupdate=utcnow()
     )
+
+
 class RolePermission(Base):
     __tablename__ = "roles_permissions"
     id: Mapped[uuid.UUID] = mapped_column(
@@ -109,6 +115,8 @@ class RolePermission(Base):
     updated_at: Mapped[datetime] = mapped_column(
         server_default=utcnow(), server_onupdate=utcnow(), onupdate=utcnow()
     )
+
+
 class Permission(Base):
     __tablename__ = "permissions"
     id: Mapped[uuid.UUID] = mapped_column(
@@ -121,6 +129,7 @@ class Permission(Base):
         server_default=utcnow(), server_onupdate=utcnow(), onupdate=utcnow()
     )
 
+
 class BlackListToken(Base):
     __tablename__ = "blacklisttokens"
     id: Mapped[uuid.UUID] = mapped_column(
@@ -128,4 +137,3 @@ class BlackListToken(Base):
     )
     expire: Mapped[datetime]
     created_at: Mapped[datetime] = mapped_column(server_default=utcnow())
-
