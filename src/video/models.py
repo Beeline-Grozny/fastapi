@@ -36,8 +36,9 @@ class Camera(Base, AttributeMixin):
     __tablename__ = "camera"
 
     location_id: Mapped[str] = mapped_column(ForeignKey("location.id"), nullable=True)
-    statistic: Mapped[str] = mapped_column(ForeignKey("statistic.id"), nullable=True)
+
     threadURL: Mapped[str] = mapped_column(String(255), nullable=False)
+
 
 
 class Location(Base, AttributeMixin):
@@ -49,19 +50,33 @@ class Location(Base, AttributeMixin):
 
 class Statistic(Base, AttributeMixin):
     __tablename__ = "statistic"
-
+    camera_id: Mapped[str] = mapped_column(ForeignKey("camera.id"), nullable=False)
     car_count: Mapped[int] = mapped_column(String(255), nullable=False, default=0, server_default="0")
     penalty_count: Mapped[int] = mapped_column(String(255), nullable=False, default=0, server_default="0")
+    violation_count: Mapped[int] = mapped_column(String(255), nullable=False, default=0, server_default="0")
 
+
+class Report(Base, AttributeMixin):
+    __tablename__ = "report"
+    """
+    coordinates: LocationView
+    description: str
+    status: Literal["red", "yellow", "green"]
+    time: datetime    
+    """
+    camera_id: Mapped[str] = mapped_column(ForeignKey("camera.id"), nullable=False)
+    car_id: Mapped[str] = mapped_column(ForeignKey("car.id"), nullable=True)
+    description: Mapped[str] = mapped_column(String(255), nullable=False)
+    status: Mapped[str] = mapped_column(String(255), nullable=False)
 
 
 class CarCamera(Base, AttributeMixin):
     __tablename__ = "car_camera"
 
     camera_id: Mapped[str] = mapped_column(ForeignKey("camera.id"), nullable=False)
-    vehicle_id: Mapped[str] = mapped_column(ForeignKey("vehicle.id"), nullable=False)
-class Vehicle(Base, AttributeMixin):
-    __tablename__ = "vehicle"
+    car_id: Mapped[str] = mapped_column(ForeignKey("car.id"), nullable=False)
+class Car(Base, AttributeMixin):
+    __tablename__ = "car"
 
     serial_number: Mapped[str] = mapped_column(String(255), nullable=False)
     region_id: Mapped[int] = mapped_column(nullable=False)

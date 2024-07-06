@@ -1,34 +1,21 @@
-import io
-import shutil
-import uuid
-from datetime import timedelta
-from enum import Enum
-from pathlib import Path
-from random import randint
-from fastapi import HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from pydantic import ValidationError
-
-import pydantic
 from sqlalchemy import select, delete
 from typing import List
-from uuid import uuid4
-
+from uuid import uuid4, UUID
 from fastapi import UploadFile, HTTPException
 from fastapi.background import BackgroundTasks
-from aiokafka import AIOKafkaProducer
+from aiokafka import AIOKafkaProducer, AIOKafkaConsumer
 import asyncio
 import cv2
+from sqlalchemy.orm import aliased
+
 from src.video import schemas
 from src.video import models
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import insert
-
-
 import av
 
-# def generate_frames(rtsp_url: str):
+# def generate_frames(rtsp_url: str, producer = None):
 #     try:
 #         # Открытие видеопотока
 #         container = av.open(rtsp_url)
@@ -49,6 +36,8 @@ import av
 #     except Exception as e:
 #         print(f"Общая ошибка: {e}")
 
+async def get_kafka_message(camera_id: str, db: AsyncSession, consumer: AIOKafkaConsumer):
+    pass
 
 async def send_frames_to_kafka(frame, producer, jpeg):
     pass
@@ -60,8 +49,8 @@ async def generate_frames(rtsp_url: str, producer) -> str:
     frame_count = 0
     try:
         video = cv2.VideoCapture(rtsp_url)
-        video.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
-        video.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+        # video.set(cv2.CAP_PROP_FRAME_WIDTH, 720)
+        # video.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
         print(video)
         while True:
             ret, frame = video.read()
@@ -93,145 +82,124 @@ async def add_camera(camera: schemas.CameraCreate, db: AsyncSession):
     if camera.location:
         try:
             db_location = models.Location(
-                latitude=camera.location.get("latitude"),
-                longitude=camera.location.get("longitude")
+                latitude=camera.location.latitude,
+                longitude=camera.location.longitude
             )
-            db.add(db_location)
-            await db.commit()
-            await db.refresh(db_location)
+            await db_location.save(db)
+
         except ValidationError as e:
             raise HTTPException(status_code=400, detail=str(e))
 
     db_camera = models.Camera(
         location_id=db_location.id if db_location else None,
-        statistic=camera.statistic,
+
         threadURL=camera.threadURL  # Предполагается, что вы переименуете threadURL в thread_url
     )
 
-    db.add(db_camera)
-    try:
-        await db.commit()
-        await db.refresh(db_camera)
-    except Exception as e:
-        await db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+    await db_camera.save(db)
 
     return db_camera
 
 async def get_cameras(db: AsyncSession):
-    query = select(models.Camera, models.Location.latitude, models.Location.longitude).join(models.Location, isouter=True).select_from(models.Camera)
-    result = await db.execute(query)
-    return result.scalars().all()
-# def rand_danger():
-#     rint = randint(0, 10)
-#     danger = {
-#         1: "Нет каски",
-#         2: "Техника безопасности нарушена",
-#         3: "Виден неправильный свет",
-#         4: "Трещины",
-#         5: "Работа с видео невозможна",
-#         6: "кадр невидимый",
-#         7: "Техника безопасности не выполняется",
-#         8: "Техника безопасности не выполняется",
-#         9: "Техника безопасности не выполняется",
-#         10:"Техника безопасности не выполняется",
-#     }
-#     return danger[rint]
-# def rand_warning():
-#     rint = randint(0, 10)
-#     warning = {
-#         1: "Подозрительное видео",
-#         2: "Плохое видео",
-#         3: "Не видно",
-#         4: "Цвет не определен",
-#         5: "Техника безопасности не выполняется",
-#         6: "Кадр невидимый",
-#         7: "Плохоее разрешение",
-#         8: "Техника безопасности не выполняется",
-#         9: "Техника безопасности не выполняется",
-#         10: "Техника безопасности не выполняется",
-#     }
-#     return warning[rint]
 
-# async def bind_penalty(db: AsyncSession, penalty, building_id: uuid4):
-#     stmt = insert(PenaltyBuildingModel).values(penalty_id=penalty.id, building_id=building_id)
-#     await db.execute(stmt)
-#     await db.commit()
-#
-#
-# async def dump_penalty(db: AsyncSession, building_id: uuid4, user_id: uuid4, reason: str, grade: str):
-#     penalty = PenaltyModel(user_id=user_id, reason=reason, grade=grade)
-#     db.add(penalty)
-#
-#     await db.commit()
-#     await bind_penalty(db=db, penalty=penalty, building_id=building_id)
-#
-#
-# async def process_video2(user_id: uuid.UUID, building_id: uuid.UUID, video_path: str, img_id: str, db: AsyncSession) -> list:
-#     index = 0
-#     results = []
-#
-#     # Открываем видео файл с помощью OpenCV
-#     cap = cv2.VideoCapture(video_path)
-#
-#     if not cap.isOpened():
-#         raise HTTPException(status_code=500, detail="Не удалось открыть видеофайл.")
-#
-#     fps = cap.get(cv2.CAP_PROP_FPS)
-#
-#     if fps == 0:
-#         raise HTTPException(status_code=500, detail="Не удалось получить FPS из видеофайла.")
-#
-#     frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-#
-#     if frame_count == 0:
-#         raise HTTPException(status_code=500, detail="Не удалось получить количество кадров из видеофайла.")
-#
-#     duration_seconds = frame_count / fps
-#
-#     # Создание директории для хранения кадров (если она не существует)
-#     frames_dir = Path(f"temp/frames_{img_id}")
-#     frames_dir.mkdir(parents=True, exist_ok=True)
-#
-#     for i in range(int(duration_seconds)):
-#         # Устанавливаем позицию на каждую секунду
-#         set_pos_success = cap.set(cv2.CAP_PROP_POS_MSEC, i * 1000)
-#
-#         if not set_pos_success:
-#             print(f"Не удалось установить позицию на {i} секунде.")
-#             continue
-#
-#         ret, frame = cap.read()
-#
-#         if not ret or frame is None or frame.size == 0:
-#             print(f"Не удалось прочитать кадр {i}.")
-#             continue
-#
-#         # Записываем кадр из видео на диск
-#         frame_path = frames_dir / f"frame_{i}.png"
-#         cv2.imwrite(str(frame_path), frame)
-#
-#         rand = randint(0, 100)
-#         current_time = timedelta(seconds=i).__str__()
-#
-#         header = ''
-#         body = ''
-#
-#         if rand > 95:
-#             header = "Danger"
-#             body = rand_warning()
-#
-#         elif rand > 70:
-#             header = "Warning"
-#             body = rand_danger()
-#
-#         if rand > 70:
-#             results.append({"index": index, "header": header, "body": body, "current_time": current_time})
-#
-#             await dump_penalty(db=db, user_id=user_id, building_id=building_id, reason=body, grade=header)
-#
-#
-#         index += 1
-#
-#     cap.release()
-#     return results
+    cameras = await db.execute(select(models.Camera, models.Location).join(models.Location, isouter=True).select_from(models.Camera))
+    cameras = cameras.all()
+    camera_views = []
+    for camera, location in cameras:
+
+        # Создайте словарь с данными камеры и локации
+        camera_data = {
+            "id": camera.id,
+            "threadURL": camera.threadURL,
+            # Убедитесь, что location сериализуется корректно
+            "location": {
+                "latitude": location.latitude if location else None,
+                "longitude": location.longitude if location else None
+                }
+        }
+        print(camera_data)
+        # Валидируйте и создайте объект CameraView
+        camera_view = schemas.CameraView.model_validate(camera_data)
+        camera_views.append(camera_view)
+    return camera_views
+
+
+async def get_reports(db: AsyncSession):
+    reports = await db.execute(select(models.Report, models.Location).join(models.Camera, isouter=True).join(models.Location, isouter=True).select_from(models.Report))
+    reports = reports.all()
+    reports_views = []
+    for report, location in reports:
+        # Создайте словарь с данными отчёта
+        report_data = {
+            "id": report.id,
+            "description": report.description,
+            "status": report.status,
+            "location": {
+                "latitude": location.latitude if location else None,
+                "longitude": location.longitude if location else None
+                },
+            "time": report.created_at
+        }
+        # Валидируйте и создайте объект ReportView
+        report_view = schemas.ReportView.model_validate(report_data)
+        reports_views.append(report_view)
+    return reports_views
+
+async def get_cars(db: AsyncSession):
+
+    cars = await db.execute(select(models.Car, models.Location).join(models.CarCamera, isouter=True).join(models.Camera, isouter=True).join(models.Location, isouter=True).select_from(models.Car))
+    cars = cars.all()
+    cars_views = []
+    for car, location in cars:
+        # Создайте словарь с данными отчёта
+        car_data = {
+            "id": car.id,
+            "owner": car.owner,
+            "serial_number": car.serial_number,
+            "region_id": car.region_id,
+            "location": {
+                "latitude": location.latitude if location else None,
+                "longitude": location.longitude if location else None
+                }
+        }
+        # Валидируйте и создайте объект ReportView
+        car_view = schemas.CarView.model_validate(car_data)
+        cars_views.append(car_view)
+    return cars_views
+async def add_report(report: schemas.ReportCreate, db: AsyncSession):
+
+    db_report = models.Report(
+        camera_id=report.camera_id,
+        car_id=report.car_id,
+        description=report.description,
+        status=report.status
+    )
+
+    await db_report.save(db)
+
+    return db_report
+
+async def add_car(car: schemas.CarCreate, db: AsyncSession):
+
+    db_car = models.Car(
+        owner=car.owner,
+        region_id=car.region_id,
+        serial_number=car.serial_number
+    )
+
+
+    await db_car.save(db)
+
+    return db_car
+
+async def detect_car(camera_id: UUID, car_id: UUID, db: AsyncSession):
+
+    db_car_camera = models.CarCamera(
+        camera_id=camera_id,
+        car_id=car_id
+    )
+
+
+    await db_car_camera.save(db)
+
+    return db_car_camera
