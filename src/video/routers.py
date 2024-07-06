@@ -43,7 +43,7 @@ async def post_camera(
 ):
     return await services.add_camera(camera= camera, db=db)
 
-@router.get("/get_cameras")
+@router.get("/get_cameras", response_model=list[schemas.CameraView])
 async def get_cameras(
         db: AsyncSession = Depends(get_db)
 ):

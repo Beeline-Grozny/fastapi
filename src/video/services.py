@@ -119,9 +119,8 @@ async def add_camera(camera: schemas.CameraCreate, db: AsyncSession):
     return db_camera
 
 async def get_cameras(db: AsyncSession):
-    result = await db.execute(select(models.Camera))
-
-
+    query = select(models.Camera, models.Location.latitude, models.Location.longitude).join(models.Location).select_from(models.Camera)
+    result = await db.execute(query)
     return result.scalars().all()
 # def rand_danger():
 #     rint = randint(0, 10)

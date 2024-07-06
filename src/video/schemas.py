@@ -13,9 +13,14 @@ class CameraCreate(BaseModel):
     statistic: Optional[str] = None
     threadURL: str
 
+
+class LocationView(BaseModel):
+    latitude: str
+    longitude: str
+
 class CameraView(BaseModel):
     id: str
-    location: Optional[dict] = None
+    location: Optional[LocationView] = None
     statistic: Optional[str] = None
     threadURL: str
     created_at: datetime
