@@ -25,6 +25,12 @@ async def get_rtsp(
     rtsp_url = await services.get_rtsp_url(camera_id, db)
     return StreamingResponse(services.generate_frames(rtsp_url, producer=None), media_type="multipart/x-mixed-replace; boundary=frame", status_code=206)
 
+@router.get("/statistic_of_camera/{camera_id}")
+async def get_statistic(
+        camera_id: str,
+        db: AsyncSession = Depends(get_db)
+):
+    return await services.get_stats_by_camera_id(camera_id, db)
 @router.websocket("/ws/{camera_id}")
 async def websocket_output(websocket: WebSocket, camera_id: str, db: AsyncSession = Depends(get_db)):
     await websocket.accept()
@@ -90,7 +96,7 @@ async def post_car(
         db: AsyncSession = Depends(get_db)
 ):
     return await services.add_car(car=car, db=db)
-@router.post("/post_car_number")
+@router.post("/bind_car_camera")
 async def post_car_number(
     car_id:UUID,
     camera_id:UUID,
@@ -103,3 +109,63 @@ async def get_statistic(
     db: AsyncSession = Depends(get_db)
 ):
     return await services.count_incidents(db=db)
+@router.get("/get_statistic_by_camera/{camera_id}")
+async def get_statistic_by_car(
+    camera_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    return await services.count_incidents_by_camera_id(camera_id=camera_id, db=db)
+
+@router.get("/get_cars_by_camera/{camera_id}")
+@router.get("/get_cars/{camera_id}")
+async def get_cars(
+    camera_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    return await services.get_cars_by_camera_id(camera_id=camera_id, db=db)
+
+@router.get("/get_linear_graf/")
+async def get_incidents_by_camera(
+    db: AsyncSession = Depends(get_db)
+):
+    return [
+    { "time": "2024-07-06T00:00:00", "value": 42, "category": "легковой" },
+    { "time": "2024-07-06T01:00:00", "value": 35, "category": "грузовой" },
+    { "time": "2024-07-06T02:00:00", "value": 28, "category": "автобус" },
+    { "time": "2024-07-06T03:00:00", "value": 47, "category": "легковой" },
+    { "time": "2024-07-06T04:00:00", "value": 55, "category": "грузовой" },
+    { "time": "2024-07-06T05:00:00", "value": 22, "category": "автобус" },
+    { "time": "2024-07-06T06:00:00", "value": 31, "category": "легковой" },
+    { "time": "2024-07-06T07:00:00", "value": 41, "category": "грузовой" },
+    { "time": "2024-07-06T08:00:00", "value": 38, "category": "автобус" },
+    { "time": "2024-07-06T09:00:00", "value": 29, "category": "легковой" },
+    { "time": "2024-07-06T10:00:00", "value": 44, "category": "грузовой" },
+    { "time": "2024-07-06T11:00:00", "value": 36, "category": "автобус" },
+    { "time": "2024-07-06T12:00:00", "value": 27, "category": "легковой" },
+    { "time": "2024-07-06T13:00:00", "value": 50, "category": "грузовой" },
+    { "time": "2024-07-06T14:00:00", "value": 33, "category": "автобус" },
+    { "time": "2024-07-06T15:00:00", "value": 42, "category": "легковой" },
+    { "time": "2024-07-06T16:00:00", "value": 35, "category": "грузовой" },
+    { "time": "2024-07-06T17:00:00", "value": 28, "category": "автобус" },
+    { "time": "2024-07-06T18:00:00", "value": 47, "category": "легковой" },
+    { "time": "2024-07-06T19:00:00", "value": 55, "category": "грузовой" },
+    { "time": "2024-07-06T20:00:00", "value": 22, "category": "автобус" },
+    { "time": "2024-07-06T21:00:00", "value": 31, "category": "легковой" },
+    { "time": "2024-07-06T22:00:00", "value": 41, "category": "грузовой" },
+    { "time": "2024-07-06T23:00:00", "value": 38, "category": "автобус" }
+]
+
+@router.get("/get_round_graf/")
+async def get_round_graf(
+    db: AsyncSession = Depends(get_db)
+):
+    return [
+  {
+    "type": "Положительно",
+    "value": 92.1,
+  },
+  {
+    "type": "Отрицательно",
+    "value": 7.9
+  }
+]

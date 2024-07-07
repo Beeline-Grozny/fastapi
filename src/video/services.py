@@ -1,3 +1,5 @@
+import random
+
 from pydantic import ValidationError
 from sqlalchemy import select, delete, func, text
 from typing import List
@@ -97,9 +99,30 @@ async def add_camera(camera: schemas.CameraCreate, db: AsyncSession):
     )
 
     await db_camera.save(db)
+    db_statistic = models.Statistic(
+        camera_id=db_camera.id,
+        car_count=random.randint(0, 100),
+        penalty_count=random.randint(100, 1000),
+    )
 
     return db_camera
 
+
+
+async def get_stats_by_camera_id(camera_id: str, db: AsyncSession):
+    result = await db.execute(select(models.Statistic).where(models.Statistic.camera_id == camera_id))
+    result = result.all()
+    stats_array = []
+    for stat in result:
+
+        stat_dict = {
+            "countToday": stat.car_count,
+            "count": stat.penalty_count
+        }
+        stats_view = schemas.StatisticView.model_validate(stat_dict)
+        stats_array.append(stats_view)
+
+    return stats_array
 async def get_cameras(db: AsyncSession):
 
     cameras = await db.execute(select(models.Camera, models.Location).join(models.Location, isouter=True).select_from(models.Camera))
@@ -251,6 +274,26 @@ async def count_incidents(db: AsyncSession):
     }
     return count
 
+async def count_incidents_by_camera_id(camera_id: UUID, db: AsyncSession):
+    query = text("""
+        SELECT 'yellow' as color, COUNT(*) as count FROM incident WHERE status = 'yellow' AND camera_id = :camera_id
+        UNION ALL
+        SELECT 'red' as color, COUNT(*) as count FROM incident WHERE status = 'red' AND camera_id = :camera_id
+        UNION ALL
+        SELECT 'green' as color, COUNT(*) as count FROM incident WHERE status = 'green' AND camera_id = :camera_id;
+    """)
+
+    result = await db.execute(query, {"camera_id": camera_id})
+
+    count = result.all()
+    print(count)
+    count = {
+        "yellow": count[0][1],
+        "red": count[1][1],
+        "green": count[2][1]
+    }
+    return count
+
 async def detect_car(camera_id: UUID, car_id: UUID, db: AsyncSession):
 
     db_car_camera = models.CarCamera(
@@ -262,3 +305,21 @@ async def detect_car(camera_id: UUID, car_id: UUID, db: AsyncSession):
     await db_car_camera.save(db)
 
     return db_car_camera
+
+async def get_cars_by_camera_id(camera_id: UUID, db: AsyncSession):
+    query = select(models.Car).join(models.CarCamera, onclause=models.CarCamera.car_id == models.Car.id).where(models.CarCamera.camera_id == camera_id)
+    cars = await db.execute(query)
+    cars = cars.scalars().all()
+    cars_views = []
+    for car in cars:
+        # Создайте словарь с данными отчёта
+        car_data = {
+            "id": car.id,
+            "owner": car.owner,
+            "serial_number": car.serial_number,
+            "region_id": car.region_id
+        }
+        # Валидируйте и создайте объект ReportView
+        car_view = schemas.CarView.model_validate(car_data)
+        cars_views.append(car_view)
+    return cars_views

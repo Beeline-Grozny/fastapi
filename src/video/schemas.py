@@ -64,8 +64,8 @@ class NumberData(BaseModel):
 
 
 class StatisticView(BaseModel):
-    countToday: int
-    count: int
+    car_count: int = Field(alias="car_count", serialization_alias="countToday")
+    penalty_count: int = Field(alias="penalty_count", serialization_alias="count")
 
 
 # Модель для данных номеров автомобилей

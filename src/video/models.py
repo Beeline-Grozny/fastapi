@@ -51,9 +51,8 @@ class Location(Base, AttributeMixin):
 class Statistic(Base, AttributeMixin):
     __tablename__ = "statistic"
     camera_id: Mapped[str] = mapped_column(ForeignKey("camera.id"), nullable=False)
-    car_count: Mapped[int] = mapped_column(String(255), nullable=False, default=0, server_default="0")
-    penalty_count: Mapped[int] = mapped_column(String(255), nullable=False, default=0, server_default="0")
-    violation_count: Mapped[int] = mapped_column(String(255), nullable=False, default=0, server_default="0")
+    car_count: Mapped[int] = mapped_column( nullable=False, default=0, )
+    penalty_count: Mapped[int] = mapped_column( nullable=False, default=0, )
 
 
 
