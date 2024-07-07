@@ -15,8 +15,8 @@ router = APIRouter(
     tags=["camera_api"],
     responses={404: {"description": "Not found"}},
 )
-producer = AIOKafkaProducer(bootstrap_servers='localhost:9092')
-consumer = AIOKafkaConsumer('photo normalization', bootstrap_servers='localhost:9092', group_id='photo normalization')
+producer = AIOKafkaProducer(bootstrap_servers='http://192.168.1.50:9092/')
+
 
 
 @router.get("/stream_rtsp/{camera_id}")
@@ -45,15 +45,35 @@ async def get_statistic(
 #
 #     except Exception as e:
 #         print(e)
+@router.websocket("/ws/messege/{camera_id}")
+async def websocket_output(websocket: WebSocket, camera_id: str, db: AsyncSession = Depends(get_db)):
+    await websocket.accept()
+    consumer = AIOKafkaConsumer('video-frames', bootstrap_servers='http://192.168.1.50:9092/')
+    try:
+        async for message in services.get_kafka_message(consumer, camera_id):
+            await websocket.send_bytes(message)
+    except Exception as e:
+        print(f"Ошибка в вебсокете: {e}")
+        # Здесь может быть код для логирования или другой обработки ошибок
+    finally:
+        await consumer.stop()
+
 
 @router.websocket("/ws/{camera_id}")
 async def websocket_video_stream(websocket: WebSocket, camera_id: str, db: AsyncSession = Depends(get_db)):
+
     await websocket.accept()
     rtsp_url = await get_rtsp(camera_id, db)
     print(rtsp_url)
     async for frame in services.generate_frames(rtsp_url, producer):
-        await websocket.send_bytes(frame)  # Отправка кадра через вебсокет
-        await asyncio.sleep(1/30)
+        try:
+            await websocket.send_bytes(frame)
+            await asyncio.sleep(1/30)
+        except Exception as e:
+            print(f"Ошибка при отправке кадра: {e}")
+            await websocket.close()
+            break  # Выход из цикла при возникновении ошибки
+
 
 @router.post("/post_camera")
 async def post_camera(

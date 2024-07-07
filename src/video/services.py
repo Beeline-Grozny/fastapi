@@ -1,5 +1,4 @@
 import random
-
 from pydantic import ValidationError
 from sqlalchemy import select, delete, func, text
 from typing import List
@@ -10,12 +9,14 @@ from aiokafka import AIOKafkaProducer, AIOKafkaConsumer
 import asyncio
 import cv2
 from sqlalchemy.orm import aliased
+from starlette.websockets import WebSocket
 
 from src.video import schemas
 from src.video import models
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import insert
 import av
+
 
 # def generate_frames(rtsp_url: str, producer = None):
 #     try:
@@ -38,32 +39,42 @@ import av
 #     except Exception as e:
 #         print(f"Общая ошибка: {e}")
 
-async def get_kafka_message(camera_id: str, db: AsyncSession, consumer: AIOKafkaConsumer):
-    pass
+async def get_kafka_message(consumer: AIOKafkaConsumer, key: str):
+    await consumer.start()
+    try:
+        async for message in consumer:
+            if message.key.decode('utf-8') == key:
+                yield message.value
+    finally:
+        await consumer.stop()
 
-async def send_frames_to_kafka(frame, producer, jpeg):
-    await producer.send_and_wait("video-frames", jpeg.tobytes())
+
+async def send_frames_to_kafka(producer: AIOKafkaProducer, key: str, jpeg):
+    value = jpeg.tobytes()
+    key = key.encode('utf-8')
+    await producer.start()
+    await producer.send_and_wait("video-frames", key=key, value=value)
 
     # await producer.send_and_wait("video-frames", jpeg.tobytes())
 
-async def generate_frames(rtsp_url: str, producer: AIOKafkaProducer) -> str:
+
+async def generate_frames(producer: AIOKafkaProducer, rtsp_url: str, camera_id: str) -> str:
     frame_count = 0
     try:
-        rtsp_url = "rtsp://807e9439d5ca.entrypoint.cloud.wowza.com:1935/app-rC94792j/068b9c9a_stream2"
-        video = cv2.VideoCapture(rtsp_url, apiPreference=cv2.CAP_FFMPEG)
 
-        print(video, "jyj")
+        video = cv2.VideoCapture(rtsp_url, apiPreference=cv2.CAP_FFMPEG)
         while True:
             ret, frame = video.read()
-            print(ret, frame)
             if not ret:
                 break
 
             (ret, jpeg) = cv2.imencode(".jpg", frame)
-            # frame_count += 1
-            # if frame_count % 10 == 0:  # Каждый 10-й кадр
-            #     await send_frames_to_kafka(frame, producer, jpeg)
-
+            frame_count += 1
+            try:
+                if frame_count % 10 == 0:  # Каждый 10-й кадр
+                    await send_frames_to_kafka(producer=producer, key=camera_id, jpeg=jpeg)
+            except Exception as e:
+                print(f"Ошибка: {e}")
             if ret:
                 yield jpeg.tobytes()
     except Exception as e:
@@ -75,8 +86,6 @@ async def get_rtsp_url(camera_id: str, db: AsyncSession):
     rtsp_url = result.scalar()
     print(rtsp_url)
     return rtsp_url
-
-
 
 
 async def add_camera(camera: schemas.CameraCreate, db: AsyncSession):
@@ -108,13 +117,11 @@ async def add_camera(camera: schemas.CameraCreate, db: AsyncSession):
     return db_camera
 
 
-
 async def get_stats_by_camera_id(camera_id: str, db: AsyncSession):
     result = await db.execute(select(models.Statistic).where(models.Statistic.camera_id == camera_id))
     result = result.all()
     stats_array = []
     for stat in result:
-
         stat_dict = {
             "countToday": stat.car_count,
             "count": stat.penalty_count
@@ -123,13 +130,14 @@ async def get_stats_by_camera_id(camera_id: str, db: AsyncSession):
         stats_array.append(stats_view)
 
     return stats_array
-async def get_cameras(db: AsyncSession):
 
-    cameras = await db.execute(select(models.Camera, models.Location).join(models.Location, isouter=True).select_from(models.Camera))
+
+async def get_cameras(db: AsyncSession):
+    cameras = await db.execute(
+        select(models.Camera, models.Location).join(models.Location, isouter=True).select_from(models.Camera))
     cameras = cameras.all()
     camera_views = []
     for camera, location in cameras:
-
         # Создайте словарь с данными камеры и локации
         camera_data = {
             "id": camera.id,
@@ -138,7 +146,7 @@ async def get_cameras(db: AsyncSession):
             "location": {
                 "latitude": location.latitude if location else None,
                 "longitude": location.longitude if location else None
-                }
+            }
         }
         print(camera_data)
         # Валидируйте и создайте объект CameraView
@@ -146,8 +154,12 @@ async def get_cameras(db: AsyncSession):
         camera_views.append(camera_view)
     return camera_views
 
+
 async def get_incidents(db: AsyncSession):
-    incidents = await db.execute(select(models.Incident, models.Location).join(models.Camera, isouter=True).join(models.Location, isouter=True).select_from(models.Incident))
+    incidents = await db.execute(
+        select(models.Incident, models.Location).join(models.Camera, isouter=True).join(models.Location,
+                                                                                        isouter=True).select_from(
+            models.Incident))
     incidents = incidents.all()
     incidents_views = []
     for incident, location in incidents:
@@ -161,7 +173,7 @@ async def get_incidents(db: AsyncSession):
             "location": {
                 "latitude": location.latitude if location else None,
                 "longitude": location.longitude if location else None
-                },
+            },
             "time": incident.created_at
         }
         # Валидируйте и создайте объект IncidentView
@@ -169,8 +181,12 @@ async def get_incidents(db: AsyncSession):
         incidents_views.append(incident_view)
     return incidents_views
 
+
 async def get_reports(db: AsyncSession):
-    reports = await db.execute(select(models.Report, models.Location).join(models.Camera, isouter=True).join(models.Location, isouter=True).select_from(models.Report))
+    reports = await db.execute(
+        select(models.Report, models.Location).join(models.Camera, isouter=True).join(models.Location,
+                                                                                      isouter=True).select_from(
+            models.Report))
     reports = reports.all()
     reports_views = []
     for report, location in reports:
@@ -185,7 +201,7 @@ async def get_reports(db: AsyncSession):
             "location": {
                 "latitude": location.latitude if location else None,
                 "longitude": location.longitude if location else None
-                },
+            },
             "time": report.created_at
         }
         # Валидируйте и создайте объект ReportView
@@ -193,9 +209,11 @@ async def get_reports(db: AsyncSession):
         reports_views.append(report_view)
     return reports_views
 
-async def get_cars(db: AsyncSession):
 
-    cars = await db.execute(select(models.Car, models.Location).join(models.CarCamera, isouter=True).join(models.Camera, isouter=True).join(models.Location, isouter=True).select_from(models.Car))
+async def get_cars(db: AsyncSession):
+    cars = await db.execute(
+        select(models.Car, models.Location).join(models.CarCamera, isouter=True).join(models.Camera, isouter=True).join(
+            models.Location, isouter=True).select_from(models.Car))
     cars = cars.all()
     cars_views = []
     for car, location in cars:
@@ -208,12 +226,13 @@ async def get_cars(db: AsyncSession):
             "location": {
                 "latitude": location.latitude if location else None,
                 "longitude": location.longitude if location else None
-                }
+            }
         }
         # Валидируйте и создайте объект ReportView
         car_view = schemas.CarView.model_validate(car_data)
         cars_views.append(car_view)
     return cars_views
+
 
 async def add_incident(report: schemas.IncidentCreate, db: AsyncSession):
     db_report = models.Incident(
@@ -227,8 +246,8 @@ async def add_incident(report: schemas.IncidentCreate, db: AsyncSession):
 
     return db_report
 
-async def add_report(report: schemas.ReportCreate, db: AsyncSession):
 
+async def add_report(report: schemas.ReportCreate, db: AsyncSession):
     db_report = models.Report(
         incident_id=report.incident_id,
         camera_id=report.camera_id,
@@ -241,18 +260,18 @@ async def add_report(report: schemas.ReportCreate, db: AsyncSession):
 
     return db_report
 
-async def add_car(car: schemas.CarCreate, db: AsyncSession):
 
+async def add_car(car: schemas.CarCreate, db: AsyncSession):
     db_car = models.Car(
         owner=car.owner,
         region_id=car.region_id,
         serial_number=car.serial_number
     )
 
-
     await db_car.save(db)
 
     return db_car
+
 
 async def count_incidents(db: AsyncSession):
     query = text("""
@@ -274,6 +293,7 @@ async def count_incidents(db: AsyncSession):
     }
     return count
 
+
 async def count_incidents_by_camera_id(camera_id: UUID, db: AsyncSession):
     query = text("""
         SELECT 'yellow' as color, COUNT(*) as count FROM incident WHERE status = 'yellow' AND camera_id = :camera_id
@@ -294,20 +314,21 @@ async def count_incidents_by_camera_id(camera_id: UUID, db: AsyncSession):
     }
     return count
 
-async def detect_car(camera_id: UUID, car_id: UUID, db: AsyncSession):
 
+async def detect_car(camera_id: UUID, car_id: UUID, db: AsyncSession):
     db_car_camera = models.CarCamera(
         camera_id=camera_id,
         car_id=car_id
     )
 
-
     await db_car_camera.save(db)
 
     return db_car_camera
 
+
 async def get_cars_by_camera_id(camera_id: UUID, db: AsyncSession):
-    query = select(models.Car).join(models.CarCamera, onclause=models.CarCamera.car_id == models.Car.id).where(models.CarCamera.camera_id == camera_id)
+    query = select(models.Car).join(models.CarCamera, onclause=models.CarCamera.car_id == models.Car.id).where(
+        models.CarCamera.camera_id == camera_id)
     cars = await db.execute(query)
     cars = cars.scalars().all()
     cars_views = []
