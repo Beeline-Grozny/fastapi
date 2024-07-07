@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 class ResponseMixin:
     status_code: int
 
+
 class LocationView(BaseModel):
     latitude: str | None
     longitude: str | None
@@ -17,9 +18,6 @@ class CameraCreate(BaseModel):
     location: Optional[LocationView] = None
 
     threadURL: str
-
-
-
 
     class Config:
         orm_mode = True
@@ -79,7 +77,27 @@ class StatisticView(BaseModel):
 #     threadURL: str
 
 # Модель для отчётов
+
+class IncidentView(BaseModel):
+    location: LocationView = Field(alias="location", serialization_alias="coordinates")
+    car_id: uuid.UUID = Field(alias="car_id", serialization_alias="carId")
+    camera_id: uuid.UUID = Field(alias="camera_id", serialization_alias="cameraId")
+    description: str
+    status: Literal["red", "yellow", "green"]
+    created_at: datetime = Field(alias="time", serialization_alias="time")
+
+
+class IncidentCreate(BaseModel):
+    camera_id: uuid.UUID
+    car_id: uuid.UUID
+    description: str
+    status: Literal["red", "yellow", "green"]
+
+
 class ReportView(BaseModel):
+    incident_id: uuid.UUID
+    camera_id: uuid.UUID = Field(alias="camera_id", serialization_alias="cameraId")
+    car_id: uuid.UUID = Field(alias="car_id", serialization_alias="carId")
     location: LocationView = Field(alias="location", serialization_alias="coordinates")
     description: str
     status: Literal["red", "yellow", "green"]
@@ -87,6 +105,7 @@ class ReportView(BaseModel):
 
 
 class ReportCreate(BaseModel):
+    incident_id: uuid.UUID
     camera_id: uuid.UUID
     car_id: uuid.UUID
     description: str

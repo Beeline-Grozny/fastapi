@@ -123,6 +123,28 @@ async def get_cameras(db: AsyncSession):
         camera_views.append(camera_view)
     return camera_views
 
+async def get_incidents(db: AsyncSession):
+    incidents = await db.execute(select(models.Incident, models.Location).join(models.Camera, isouter=True).join(models.Location, isouter=True).select_from(models.Incident))
+    incidents = incidents.all()
+    incidents_views = []
+    for incident, location in incidents:
+        # Создайте словарь с данными инцидента
+        incident_data = {
+            "id": incident.id,
+            "car_id": incident.car_id,
+            "camera_id": incident.camera_id,
+            "status": incident.status,
+            "description": incident.description,
+            "location": {
+                "latitude": location.latitude if location else None,
+                "longitude": location.longitude if location else None
+                },
+            "time": incident.created_at
+        }
+        # Валидируйте и создайте объект IncidentView
+        incident_view = schemas.IncidentView.model_validate(incident_data)
+        incidents_views.append(incident_view)
+    return incidents_views
 
 async def get_reports(db: AsyncSession):
     reports = await db.execute(select(models.Report, models.Location).join(models.Camera, isouter=True).join(models.Location, isouter=True).select_from(models.Report))
@@ -132,6 +154,9 @@ async def get_reports(db: AsyncSession):
         # Создайте словарь с данными отчёта
         report_data = {
             "id": report.id,
+            "incident_id": report.camera_id,
+            "camera_id": report.camera_id,
+            "car_id": report.car_id,
             "description": report.description,
             "status": report.status,
             "location": {
@@ -166,9 +191,23 @@ async def get_cars(db: AsyncSession):
         car_view = schemas.CarView.model_validate(car_data)
         cars_views.append(car_view)
     return cars_views
+
+async def add_incident(report: schemas.IncidentCreate, db: AsyncSession):
+    db_report = models.Incident(
+
+        camera_id=report.camera_id,
+        car_id=report.car_id,
+        description=report.description,
+        status=report.status
+    )
+    await db_report.save(db)
+
+    return db_report
+
 async def add_report(report: schemas.ReportCreate, db: AsyncSession):
 
     db_report = models.Report(
+        incident_id=report.incident_id,
         camera_id=report.camera_id,
         car_id=report.car_id,
         description=report.description,

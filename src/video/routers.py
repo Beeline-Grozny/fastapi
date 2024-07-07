@@ -63,6 +63,11 @@ async def get_reports(
         db: AsyncSession = Depends(get_db)
 ):
     return await services.get_reports(db=db)
+@router.get("/get_incidents/", response_model=list[schemas.IncidentView])
+async def get_reports(
+        db: AsyncSession = Depends(get_db)
+):
+    return await services.get_incidents(db=db)
 
 @router.post("/post_report")
 async def post_report(
@@ -70,6 +75,15 @@ async def post_report(
         db: AsyncSession = Depends(get_db)
 ):
     return await services.add_report(report=report, db=db)
+
+@router.post("/post_incident")
+async def post_report(
+        report: schemas.IncidentCreate,
+        db: AsyncSession = Depends(get_db)
+):
+    return await services.add_incident(report=report, db=db)
+
+
 @router.post("/post_car")
 async def post_car(
         car: schemas.CarCreate,

@@ -56,6 +56,14 @@ class Statistic(Base, AttributeMixin):
     violation_count: Mapped[int] = mapped_column(String(255), nullable=False, default=0, server_default="0")
 
 
+
+class Incident(Base, AttributeMixin):
+    __tablename__ = "incident"
+    camera_id: Mapped[str] = mapped_column(ForeignKey("camera.id"), nullable=False)
+    car_id: Mapped[str] = mapped_column(ForeignKey("car.id"), nullable=True)
+    description: Mapped[str] = mapped_column(String(255), nullable=False)
+    status: Mapped[str] = mapped_column(String(255), nullable=False)
+
 class Report(Base, AttributeMixin):
     __tablename__ = "report"
     """
@@ -64,6 +72,7 @@ class Report(Base, AttributeMixin):
     status: Literal["red", "yellow", "green"]
     time: datetime    
     """
+    incident_id: Mapped[str] = mapped_column(ForeignKey("incident.id"), nullable=False)
     camera_id: Mapped[str] = mapped_column(ForeignKey("camera.id"), nullable=False)
     car_id: Mapped[str] = mapped_column(ForeignKey("car.id"), nullable=True)
     description: Mapped[str] = mapped_column(String(255), nullable=False)
