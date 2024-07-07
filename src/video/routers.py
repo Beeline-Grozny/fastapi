@@ -97,3 +97,9 @@ async def post_car_number(
     db: AsyncSession = Depends(get_db)
 ):
     return await services.detect_car(car_id=car_id, camera_id=camera_id, db=db)
+
+@router.get("/get_statistic")
+async def get_statistic(
+    db: AsyncSession = Depends(get_db)
+):
+    return await services.count_incidents(db=db)

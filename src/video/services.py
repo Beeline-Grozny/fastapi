@@ -1,5 +1,5 @@
 from pydantic import ValidationError
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, func, text
 from typing import List
 from uuid import uuid4, UUID
 from fastapi import UploadFile, HTTPException
@@ -230,6 +230,26 @@ async def add_car(car: schemas.CarCreate, db: AsyncSession):
     await db_car.save(db)
 
     return db_car
+
+async def count_incidents(db: AsyncSession):
+    query = text("""
+        SELECT 'yellow' as color, COUNT(*) as count FROM incident WHERE status = 'yellow'
+        UNION ALL
+        SELECT 'red' as color, COUNT(*) as count FROM incident WHERE status = 'red'
+        UNION ALL
+        SELECT 'green' as color, COUNT(*) as count FROM incident WHERE status = 'green';
+    """)
+
+    result = await db.execute(query)
+
+    count = result.all()
+    print(count)
+    count = {
+        "yellow": count[0][1],
+        "red": count[1][1],
+        "green": count[2][1]
+    }
+    return count
 
 async def detect_car(camera_id: UUID, car_id: UUID, db: AsyncSession):
 

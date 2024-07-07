@@ -1,7 +1,7 @@
 import asyncio
 from datetime import datetime
 import uuid
-from src.prorab.models import Task, Report
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database import SessionFactory
 from sqlalchemy import select
