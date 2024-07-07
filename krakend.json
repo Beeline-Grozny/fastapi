@@ -1,45 +1,38 @@
-
 {
-  "version": 3,
-  "name": "My KrakenD API Gateway",
-  "cache_ttl": "3600s",
-  "extra_config": {
-    "github_com/devopsfaith/krakend-cobra/config": {
-      "enable": true,
-      "address": ":8080"
-    }
-  },
+  "version": 2,
+  "name": "Your API Gateway",
+  "port": 8080,
   "endpoints": [
     {
-      "endpoint": "/get",
+      "endpoint": "/auth/register",
       "method": "POST",
-      "extra_config": {
-        "github.com/devopsfaith/krakend-httpcache": {
-          "memory": {
-            "ttl": 60,
-            "capacity": 1000
-          }
-        }
-      },
-      "output_encoding": "json",
       "backend": [
         {
-          "host": [
-            "http://0.0.0.0:8000"
-          ],
-          "url_pattern": "/video/insert_video",
-          "extra_config": {
-            "github.com/devopsfaith/krakend-httpcache": {
-              "client": {
-                "ttl": 3600
-              }
-            },
-            "github_com/devopsfaith/krakend-redis": {
-              "endpoint": "localhost:6379",
-              "max_idle_connections": 10,
-              "ttl": "3600s"
-            }
-          }
+          "url_pattern": "/auth/register",
+          "host": ["http://your-auth-service"],
+          "group": "auth"
+        }
+      ]
+    },
+    {
+      "endpoint": "/auth/login",
+      "method": "POST",
+      "backend": [
+        {
+          "url_pattern": "/auth/login",
+          "host": ["http://your-auth-service"],
+          "group": "auth"
+        }
+      ]
+    },
+    {
+      "endpoint": "/auth/refresh",
+      "method": "GET",
+      "backend": [
+        {
+          "url_pattern": "/auth/refresh",
+          "host": ["http://your-auth-service"],
+          "group": "auth"
         }
       ]
     }
