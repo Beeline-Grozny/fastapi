@@ -1,3 +1,4 @@
+import asyncio
 from uuid import UUID
 
 from aiokafka import AIOKafkaProducer, AIOKafkaConsumer
@@ -16,6 +17,8 @@ router = APIRouter(
 )
 producer = AIOKafkaProducer(bootstrap_servers='localhost:9092')
 consumer = AIOKafkaConsumer('photo normalization', bootstrap_servers='localhost:9092', group_id='photo normalization')
+
+
 @router.get("/stream_rtsp/{camera_id}")
 async def get_rtsp(
         camera_id: str,
@@ -31,18 +34,26 @@ async def get_statistic(
         db: AsyncSession = Depends(get_db)
 ):
     return await services.get_stats_by_camera_id(camera_id, db)
+# @router.websocket("/ws/{camera_id}")
+# async def websocket_output(websocket: WebSocket, camera_id: str, db: AsyncSession = Depends(get_db)):
+#     await websocket.accept()
+#     try:
+#         while True:
+#             cunsume = await services.get_kafka_message(camera_id, db)
+#
+#             await websocket.send_bytes(b"some")
+#
+#     except Exception as e:
+#         print(e)
+
 @router.websocket("/ws/{camera_id}")
-async def websocket_output(websocket: WebSocket, camera_id: str, db: AsyncSession = Depends(get_db)):
+async def websocket_video_stream(websocket: WebSocket, camera_id: str, db: AsyncSession = Depends(get_db)):
     await websocket.accept()
-    try:
-        while True:
-            cunsume = await services.get_kafka_message(camera_id, db)
-
-            await websocket.send_bytes(b"some")
-
-    except Exception as e:
-        print(e)
-
+    rtsp_url = await get_rtsp(camera_id, db)
+    print(rtsp_url)
+    async for frame in services.generate_frames(rtsp_url, producer):
+        await websocket.send_bytes(frame)  # Отправка кадра через вебсокет
+        await asyncio.sleep(1/30)
 
 @router.post("/post_camera")
 async def post_camera(

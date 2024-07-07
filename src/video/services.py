@@ -42,18 +42,17 @@ async def get_kafka_message(camera_id: str, db: AsyncSession, consumer: AIOKafka
     pass
 
 async def send_frames_to_kafka(frame, producer, jpeg):
-    pass
-
+    await producer.send_and_wait("video-frames", jpeg.tobytes())
 
     # await producer.send_and_wait("video-frames", jpeg.tobytes())
 
-async def generate_frames(rtsp_url: str, producer) -> str:
+async def generate_frames(rtsp_url: str, producer: AIOKafkaProducer) -> str:
     frame_count = 0
     try:
-        video = cv2.VideoCapture(rtsp_url)
-        # video.set(cv2.CAP_PROP_FRAME_WIDTH, 720)
-        # video.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-        print(video)
+        rtsp_url = "rtsp://807e9439d5ca.entrypoint.cloud.wowza.com:1935/app-rC94792j/068b9c9a_stream2"
+        video = cv2.VideoCapture(rtsp_url, apiPreference=cv2.CAP_FFMPEG)
+
+        print(video, "jyj")
         while True:
             ret, frame = video.read()
             print(ret, frame)
@@ -61,11 +60,12 @@ async def generate_frames(rtsp_url: str, producer) -> str:
                 break
 
             (ret, jpeg) = cv2.imencode(".jpg", frame)
-            frame_count += 1
-            if frame_count % 10 == 0:  # Каждый 10-й кадр
-                await send_frames_to_kafka(frame, producer, jpeg)
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + bytearray(jpeg) + b'\r\n')
+            # frame_count += 1
+            # if frame_count % 10 == 0:  # Каждый 10-й кадр
+            #     await send_frames_to_kafka(frame, producer, jpeg)
+
+            if ret:
+                yield jpeg.tobytes()
     except Exception as e:
         print(f"Ошибка: {e}")
 
