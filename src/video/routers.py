@@ -65,7 +65,7 @@ async def websocket_video_stream(websocket: WebSocket, camera_id: str, db: Async
     await websocket.accept()
     rtsp_url = await get_rtsp(camera_id, db)
     print(rtsp_url)
-    async for frame in services.generate_frames(rtsp_url, producer):
+    async for frame in services.generate_frames(rtsp_url=rtsp_url, producer=producer, camera_id=camera_id):
         try:
             await websocket.send_bytes(frame)
             await asyncio.sleep(1/30)
