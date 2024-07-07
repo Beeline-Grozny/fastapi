@@ -26,7 +26,7 @@ async def get_rtsp(
 ):
     #rtsp_url = "rtsp://807e9439d5ca.entrypoint.cloud.wowza.com:1935/app-rC94792j/068b9c9a_stream2"
     rtsp_url = await services.get_rtsp_url(camera_id, db)
-    return StreamingResponse(services.generate_frames(rtsp_url, producer=None), media_type="multipart/x-mixed-replace; boundary=frame", status_code=206)
+    return StreamingResponse(services.generate_frames(rtsp_url=rtsp_url, producer=producer, camera_id=camera_id), media_type="multipart/x-mixed-replace; boundary=frame", status_code=206)
 
 @router.get("/statistic_of_camera/{camera_id}")
 async def get_statistic(
