@@ -27,20 +27,6 @@ jobs:
       uses: actions/checkout@v3
     - name: search rep
       run: ls
-    - name: wireguard connect
-      run: |
-        sudo apt install wireguard resolvconf
-        echo "[Interface]" | sudo tee -a /etc/wireguard/wg0-client.conf
-        echo "PrivateKey = OBrw5Og22o6cBYrPbAbnreyHDP6e1YSRWeP6uTiyXm0=" | sudo tee -a /etc/wireguard/wg0-client.conf
-        echo "Address = 10.66.66.67/32,fd42:42:42::67/128" | sudo tee -a /etc/wireguard/wg0-client.conf
-        echo "DNS = 94.140.14.14,94.140.15.15" | sudo tee -a /etc/wireguard/wg0-client.conf
-
-        echo "[Peer]" | sudo tee -a /etc/wireguard/wg0-client.conf
-        echo "PublicKey = cKCItjTu1GL6YirZDsMIbK9pINSwylXPmB6FlnBIGnU=" | sudo tee -a /etc/wireguard/wg0-client.conf
-        echo "PresharedKey = vW2+IOfNdxOfPEz/FQHGzzNGn9RrJOp8kzwtuxyNkIg=" | sudo tee -a /etc/wireguard/wg0-client.conf
-        echo "Endpoint = 212.192.134.141:41194" | sudo tee -a /etc/wireguard/wg0-client.conf
-        echo "AllowedIPs = 192.168.0.0/24,10.66.66.0/24" | sudo tee -a /etc/wireguard/wg0-client.conf
-        sudo wg-quick up wg0-client
 
       
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
@@ -50,6 +36,7 @@ jobs:
         host: ${{ secrets.HOST }}
         username: ${{ secrets.USERNAME }}
         password: ${{ secrets.PASSWORD }}
+        port: ${{secrets.PORT}}
         script: |
           sudo -i
           cd opt
